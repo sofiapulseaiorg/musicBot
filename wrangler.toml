@@ -1,9 +1,5 @@
 name = "musicbot"
 compatibility_date = "2023-12-01"
-compatibility_flags = ["nodejs_compat"]
 
 # This is the key property for Pages
 pages_build_output_dir = ".vercel/output/static"
-
-# The correct format for node_compat is a boolean value
-node_compat = true
