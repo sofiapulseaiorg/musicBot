@@ -1,0 +1,7 @@
+name = "musicbot"
+compatibility_date = "2023-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Enable the Node.js compatibility flag
+[node_compat]
+enabled = true
