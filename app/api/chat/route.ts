@@ -56,9 +56,14 @@ export async function POST(request: Request) {
         const body = await request.json();
         const { userMessage } = body;
 
+        // Log incoming request
+        console.log("Received request with message:", userMessage);
+
         chatHistory.push({ role: "user", content: userMessage });
 
         let assistantResponse = "";
+
+        console.log("Chat history length:", chatHistory.length);
 
         console.log(chatHistory)
 
@@ -133,8 +138,34 @@ export async function POST(request: Request) {
             userMessage,
             spotifyLinks
         });
-    } catch (error) {
-        console.error("Error processing request:", error);
-        return new NextResponse('Internal Server Error', { status: 500 });
+    } catch (error: any) { // Use 'any' to access all potential properties
+        // Enhanced error logging
+        console.error("Error details:", {
+            name: error.name || 'Unknown',
+            message: error.message || 'No message',
+            stack: error.stack || 'No stack trace',
+            cause: error.cause || 'No cause'
+        });
+        
+        // Log all properties of the error
+        console.error("Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        
+        // If it's a specific error with Spotify or OpenAI, log that
+        if (error.response) {
+            console.error("API response error:", {
+                status: error.response.status,
+                data: error.response.data,
+                headers: error.response.headers
+            });
+        }
+        
+        return new NextResponse(JSON.stringify({
+            error: error.message,
+            stack: error.stack,
+            type: error.constructor.name
+        }), { 
+            status: 500,
+            headers: { 'Content-Type': 'application/json' }
+        });
     }
 }
