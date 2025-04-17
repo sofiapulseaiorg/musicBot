@@ -1,9 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  experimental: {
-    runtime: "edge", // enables Edge Runtime
-  },
+  // no need to set runtime here
 };
 
 export default nextConfig;
