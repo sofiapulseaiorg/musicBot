@@ -1,6 +1,9 @@
-name = "musicbot"
+name = "your-next-app"
 compatibility_date = "2023-12-01"
 compatibility_flags = ["nodejs_compat"]
+
+# This is the key property that was missing
+pages_build_output_dir = ".vercel/output/static"
 
 # Enable the Node.js compatibility flag
 [node_compat]
