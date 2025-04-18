@@ -137,7 +137,7 @@ export async function POST(request: Request) {
                 console.log(`Found previous song: ${lastSong.song}`);
                 return new Response(JSON.stringify({
                     role: "assistant",
-                    content: `Playing the last requested song: ${lastSong.song}`,
+                    content: `Here's the last song you requested:`,
                     userMessage,
                     spotifyLinks: [lastSong]
                 }), {
@@ -156,51 +156,53 @@ export async function POST(request: Request) {
             }
         }
 
-        let systemMessage = "You are a Music Bot. If the user asks for a song, return only the song title and artist in the format: 'Song Title - Artist'. However, if the user asks for details about a song, provide a brief description including its release year, genre, and any notable facts. be more conversational if the user dosen't ask for a song";
+        // Change system message to make responses more conversational
+        let systemMessage = "You are a Music Bot. If the user asks for a song, respond with ONLY the song title and artist in the format: 'Song Title - Artist'. Don't add any extra text, explanation or introduction. If the user asks for details about a song, provide a brief description including its release year, genre, and any notable facts. Be conversational if the user doesn't ask for a song.";
 
         if (userMessage.toLowerCase().includes("detail") || userMessage.toLowerCase().includes("info") || userMessage.toLowerCase().includes("tell me about")) {
             systemMessage = "You are a Music Bot. Provide a detailed description of the song, including its release year, genre, notable achievements, and any fun facts.";
         }
 
-        // Prepare messages for OpenAI
-        const messages = [
+        // Call OpenAI API directly
+        assistantResponse = await callOpenAI([
             { role: "system", content: systemMessage },
             ...chatHistory,
             { role: "user", content: userMessage }
-        ];
+        ]);
         
-        // Call OpenAI API directly
-        assistantResponse = await callOpenAI(messages);
         console.log(`AI response: "${assistantResponse.substring(0, 100)}..."`);
         
-        chatHistory.push({ role: "assistant", content: assistantResponse });
-
-        let songOptions: string[] = [];
-        let spotifyLinks: SpotifyTrack[] = [];
-
         // Try multiple regex patterns to detect songs
-        // 1. Exact format at beginning of response: "Title - Artist"
         const exactMatch = assistantResponse.match(/^(.+?) - (.+)$/);
-        
-        // 2. More relaxed pattern that can find a song anywhere in the response
         const relaxedMatch = !exactMatch && assistantResponse.match(/["']?([^"'\n-]+)["']?\s*-\s*["']?([^"'\n,\.]+)["']?/);
         
-        console.log("Exact match result:", exactMatch ? `Found: ${exactMatch[1]} - ${exactMatch[2]}` : "Not found");
-        console.log("Relaxed match result:", relaxedMatch ? `Found: ${relaxedMatch[1]} - ${relaxedMatch[2]}` : "Not found");
+        let songDetected = false;
+        let songOptions: string[] = [];
+        let spotifyLinks: SpotifyTrack[] = [];
+        let modifiedResponse = assistantResponse;
 
         if (exactMatch) {
             const songTitle = exactMatch[1].trim();
             const artist = exactMatch[2].trim();
             console.log(`Detected song in exact format: "${songTitle}" by "${artist}"`);
             songOptions.push(`${songTitle} by ${artist}`);
+            songDetected = true;
+            
+            // Replace the raw song format with a more conversational response
+            modifiedResponse = `Here's "${songTitle}" by ${artist}:`;
         } else if (relaxedMatch) {
             const songTitle = relaxedMatch[1].trim();
             const artist = relaxedMatch[2].trim();
             console.log(`Detected song with relaxed pattern: "${songTitle}" by "${artist}"`);
             songOptions.push(`${songTitle} by ${artist}`);
+            songDetected = true;
+            
+            // Replace the detected song in the response with a more conversational introduction
+            modifiedResponse = `Here's "${songTitle}" by ${artist}:`;
         }
         
-        console.log("Song options after detection:", songOptions);
+        // Add the modified response to chat history
+        chatHistory.push({ role: "assistant", content: assistantResponse });
 
         if (songOptions.length > 0) {
             console.log(`Looking up ${songOptions.length} songs on Spotify`);
@@ -219,14 +221,10 @@ export async function POST(request: Request) {
                     console.log(`Will search Spotify for: "${title}" by "${artist}"`);
                     
                     const trackId = await searchSpotifyTrack(title, artist);
-                    console.log(`Spotify search result for "${title}": ${trackId ? `Found` : 'Not found'}`);
                     
                     if (trackId) {
                         const spotifyLink = `https://open.spotify.com/track/${trackId}`;
                         const iframe = `<iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/${trackId}" width="300" height="80" frameBorder="0" allowtransparency="true" allow="encrypted-media"></iframe>`;
-                        
-                        console.log(`Created Spotify link: ${spotifyLink}`);
-                        console.log(`Created iframe HTML for track`);
                         
                         return {
                             song,
@@ -234,7 +232,6 @@ export async function POST(request: Request) {
                             iframe: iframe
                         };
                     } else {
-                        console.log(`No track found for "${song}"`);
                         return {
                             song,
                             link: null,
@@ -250,37 +247,26 @@ export async function POST(request: Request) {
                     };
                 }
             }));
-            
-            console.log(`Final spotifyLinks array (${spotifyLinks.length} items):`, spotifyLinks);
-        } else {
-            console.log("No songs detected in AI response");
         }
 
         if (spotifyLinks.length > 0 && spotifyLinks[0].link) {
-            console.log(`Adding song to track history: ${spotifyLinks[0].song}`);
             trackHistory.push(spotifyLinks[0]);
             trackHistory = trackHistory.slice(-10);
         }
 
         chatHistory = chatHistory.slice(-10);
         
-        console.log("Preparing final response");
-        
-        const responseData = {
+        return new Response(JSON.stringify({
             role: "assistant",
-            content: assistantResponse,
+            // Use the modified response if a song was detected
+            content: songDetected ? modifiedResponse : assistantResponse,
             userMessage,
             spotifyLinks
-        };
-        
-        console.log(`Response will include ${spotifyLinks.length} Spotify links`);
-
-        return new Response(JSON.stringify(responseData), {
+        }), {
             headers: { 'Content-Type': 'application/json' }
         });
     } catch (error: any) {
         console.error("Error processing request:", error);
-        console.error("Error stack:", error.stack);
         
         return new Response(JSON.stringify({ 
             error: "Internal Server Error",
