@@ -223,8 +223,15 @@ export async function POST(request: Request) {
         };
         
         console.log("=== API ROUTE END ===");
-        
-        return NextResponse.json(response);
+
+        return new Response(
+            JSON.stringify(response),
+            {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
     } catch (error: any) {
         console.error("=== ERROR IN API ROUTE ===");
         console.error("Error type:", error.constructor.name);
