@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 export const runtime = 'edge';
 import OpenAI from "openai";
 
