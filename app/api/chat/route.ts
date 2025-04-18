@@ -13,27 +13,15 @@ type ChatMessage = {
     content: string;
 };
 
-type SpotifyTrack = {
-    song: string;
-    link: string | null;
-    iframe: string | null;
-};
-
-// Global state
-let chatHistory: ChatMessage[] = [];
-
 export async function POST(request: Request) {
     try {
-        console.log("Starting function with OpenAI integration");
+        console.log("Starting minimal function with OpenAI");
         
         // Parse request
         const requestData = await request.json();
         const userMessage = requestData.userMessage || "";
         
         console.log("Received message:", userMessage);
-        
-        // Add to chat history
-        chatHistory = [...chatHistory, { role: "user", content: userMessage }];
         
         // Call OpenAI API
         let assistantResponse;
@@ -43,7 +31,7 @@ export async function POST(request: Request) {
                 model: "gpt-4o",
                 messages: [
                     { role: "system", content: "You are a Music Bot. Respond briefly." },
-                    ...chatHistory
+                    { role: "user", content: userMessage }
                 ],
                 temperature: 0.7,
             });
@@ -55,38 +43,32 @@ export async function POST(request: Request) {
             assistantResponse = "I'm sorry, I'm having trouble right now.";
         }
         
-        // Add to chat history
-        chatHistory = [...chatHistory, { role: "assistant", content: assistantResponse }];
-        chatHistory = chatHistory.slice(-10);
-        
-        // Prepare response
-        const responseData = {
-            role: "assistant",
-            content: assistantResponse,
-            userMessage: userMessage,
-            spotifyLinks: [] // No Spotify integration yet
+        // Super basic response structure
+        const simpleResponse = {
+            text: assistantResponse
         };
         
         console.log("Sending response");
         
-        // Use standard Response
-        return new Response(
-            JSON.stringify(responseData),
-            {
-                headers: {
-                    "Content-Type": "application/json"
-                }
-            }
-        );
+        // Create response in a different way
+        const responseText = JSON.stringify(simpleResponse);
+        const headers = new Headers();
+        headers.append("Content-Type", "application/json");
+        
+        return new Response(responseText, {
+            status: 200,
+            headers
+        });
     } catch (error) {
         console.error("Error in function:", error);
         
-        return new Response(
-            JSON.stringify({ error: "An error occurred" }),
-            { 
-                status: 500,
-                headers: { "Content-Type": "application/json" }
-            }
-        );
+        const errorText = JSON.stringify({ error: "An error occurred" });
+        const headers = new Headers();
+        headers.append("Content-Type", "application/json");
+        
+        return new Response(errorText, { 
+            status: 500,
+            headers
+        });
     }
 }
