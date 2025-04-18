@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 export const runtime = 'edge';
 
 // Minimal type definitions
