@@ -1,8 +1,11 @@
-/* eslint-disable */
-
 export const runtime = 'edge';
+import OpenAI from "openai";
 
-// Minimal type definitions
+// Constants
+const GPT = process.env.AI as string;
+const openai = new OpenAI({ apiKey: GPT });
+
+// Types
 type ChatMessage = {
     role: "user" | "assistant";
     content: string;
@@ -14,10 +17,12 @@ type SpotifyTrack = {
     iframe: string | null;
 };
 
-// Simplified version with no dependencies
+// Global state
+let chatHistory: ChatMessage[] = [];
+
 export async function POST(request: Request) {
     try {
-        console.log("Starting minimal function");
+        console.log("Starting function with OpenAI integration");
         
         // Parse request
         const requestData = await request.json();
@@ -25,17 +30,44 @@ export async function POST(request: Request) {
         
         console.log("Received message:", userMessage);
         
-        // Simple static response (no API calls)
+        // Add to chat history
+        chatHistory = [...chatHistory, { role: "user", content: userMessage }];
+        
+        // Call OpenAI API
+        let assistantResponse;
+        try {
+            console.log("Calling OpenAI API");
+            const chatResponse = await openai.chat.completions.create({
+                model: "gpt-4o",
+                messages: [
+                    { role: "system", content: "You are a Music Bot. Respond briefly." },
+                    ...chatHistory
+                ],
+                temperature: 0.7,
+            });
+            
+            assistantResponse = chatResponse.choices[0]?.message?.content || "I'm sorry, I couldn't process that.";
+            console.log("OpenAI API call successful");
+        } catch (aiError) {
+            console.error("OpenAI API error:", aiError);
+            assistantResponse = "I'm sorry, I'm having trouble right now.";
+        }
+        
+        // Add to chat history
+        chatHistory = [...chatHistory, { role: "assistant", content: assistantResponse }];
+        chatHistory = chatHistory.slice(-10);
+        
+        // Prepare response
         const responseData = {
             role: "assistant",
-            content: "This is a test response without any external API calls.",
+            content: assistantResponse,
             userMessage: userMessage,
-            spotifyLinks: []
+            spotifyLinks: [] // No Spotify integration yet
         };
         
         console.log("Sending response");
         
-        // Use the most basic response object possible
+        // Use standard Response
         return new Response(
             JSON.stringify(responseData),
             {
@@ -45,7 +77,7 @@ export async function POST(request: Request) {
             }
         );
     } catch (error) {
-        console.error("Error in minimal function:", error);
+        console.error("Error in function:", error);
         
         return new Response(
             JSON.stringify({ error: "An error occurred" }),
