@@ -2,3 +2,7 @@ name = "musicbot"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = ".vercel/output/static"
+
+# Environment variables
+[vars]
+SPOTIFY_CLIENT_ID = "1d8ac23c0a49471fb51680b73bbad201"
